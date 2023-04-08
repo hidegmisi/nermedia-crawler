@@ -146,6 +146,9 @@ class Crawler:
             else:
                 return None
 
+            if url in processed_urls:
+                return None
+
             return {
                 'url': url,
                 'source': source,
@@ -205,7 +208,7 @@ class DateCrawler():
             
             has_links = await Crawler(self.session).process_schema(url, self.schema['source'], self.all_data)
 
-            if has_links:
+            if has_links and page < 30:
                 page += 1
             else:
                 break
