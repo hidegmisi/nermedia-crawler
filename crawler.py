@@ -168,9 +168,19 @@ class PageCrawler():
         self.all_data = all_data
 
     async def process(self):
-        url = self.schema['url']
-        page_url = url.format(page=self.page)
-        return Crawler(self.session).process_schema(page_url, self.schema['source'], self.all_data)
+        has_links = False
+
+        if 'column' in self.schema['url']:
+            columns = self.schema['columns']
+
+            for column in columns:
+                url = self.schema['url'].format(page=self.page, column=column)
+                has_links = await Crawler(self.session).process_schema(url, self.schema['source'], self.all_data)
+        else:
+            url = self.schema['url'].format(page=self.page)
+            has_links = await Crawler(self.session).process_schema(url, self.schema['source'], self.all_data)
+
+        return has_links
 
 class DateCrawler():
     def __init__(self, session, schema, current_date, all_data):
@@ -229,7 +239,7 @@ async def save_data_periodically(all_data, save_period=config["save_period"]):
         await save_data(all_data)
         all_data.clear()
 
-async def main():
+async def main(start_time = datetime.now().date(), start_page = 1):
     global processed_urls
     global output_file
 
@@ -242,8 +252,10 @@ async def main():
                 processed_urls.add(data_item['url'])
     
     more_pages = True
-    page = 1
-    current_date = datetime.now().date()
+    page = start_page
+    page_concurrent = 15
+    current_date = start_time
+    date_concurrent = 100
 
     async with aiohttp.ClientSession() as session:
         save_data_task = asyncio.create_task(save_data_periodically(all_data))
@@ -254,16 +266,19 @@ async def main():
             tasks = []
             for schema in url_schemas:
                 if(schema['type'] == 'PAGE'):
-                    task = PageCrawler(session, schema, page, all_data).process()
+                    for i in range(0, page_concurrent):
+                        task = PageCrawler(session, schema, page + i, all_data).process()
+                        tasks.append(task)
                 elif(schema['type'] == 'DATE'):
-                    task = DateCrawler(session, schema, current_date, all_data).process()
-                tasks.append(task)
-            
+                    for i in range(0, date_concurrent):
+                        task = DateCrawler(session, schema, current_date - timedelta(days = i), all_data).process()
+                        tasks.append(task)
+
             results = await asyncio.gather(*tasks)
             # more_pages = any(results)
             
-            page += 1
-            current_date -= timedelta(days=1)
+            page += page_concurrent
+            current_date -= timedelta(days=date_concurrent)
         
         save_data_task.cancel()
         await save_data(all_data)
