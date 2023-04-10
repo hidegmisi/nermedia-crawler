@@ -55,13 +55,13 @@ class Crawler:
                     continue
 
                 has_links = True
-                processed_urls.add(link_url)
 
                 link_soup = await self.crawl_page(link_url, base_url=url)
                 if link_soup and self.is_article(link_soup):
                     metadata = self.extract_metadata(link_soup, source)
                     if metadata:
                         all_data.append(metadata)
+                        processed_urls.add(metadata['url'])
 
         return has_links
     
