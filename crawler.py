@@ -255,7 +255,7 @@ async def main(start_time = datetime.now().date(), start_page = 1):
     page = start_page
     page_concurrent = 15
     current_date = start_time
-    date_concurrent = 100
+    date_concurrent = 5
 
     async with aiohttp.ClientSession() as session:
         save_data_task = asyncio.create_task(save_data_periodically(all_data))
@@ -284,4 +284,4 @@ async def main(start_time = datetime.now().date(), start_page = 1):
         await save_data(all_data)
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    asyncio.run(main(start_page=2000))
